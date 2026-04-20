@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/trip.dart';
 import '../models/user.dart';
 import '../models/expense.dart';
@@ -11,8 +12,10 @@ import '../services/currency_service.dart';
 import '../providers/expense_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/trip_provider.dart';
+import '../widgets/common_widgets.dart';
 import 'add_expense_screen.dart';
 import 'manage_trip_screen.dart';
+import 'manage_categories_screen.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   final Trip trip;
@@ -31,91 +34,84 @@ class CategorySpending {
   CategorySpending(this.category, this.amount);
 }
 
-// Custom painter for pie chart
-class PieChartPainter extends CustomPainter {
+// Custom painter for modern donut chart
+class DonutChartPainter extends CustomPainter {
   final List<MapEntry<String, double>> data;
   final double total;
   final String currency;
+  final double innerRadius;
 
-  PieChartPainter(this.data, this.total, this.currency);
+  DonutChartPainter(
+    this.data,
+    this.total,
+    this.currency, {
+    this.innerRadius = 0.6,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width / 2, size.height / 2) * 0.8;
+    final radius = math.min(size.width / 2, size.height / 2) * 0.9;
+    final innerR = radius * innerRadius;
     final paint = Paint()..style = PaintingStyle.fill;
 
-    double startAngle = 0;
+    double startAngle = -math.pi / 2; // Start from top
     final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.pink,
-      Colors.yellow,
+      Color(0xFF0EA5E9),
+      Color(0xFF8B5CF6),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEC4899),
+      Color(0xFF14B8A6),
+      Color(0xFFF97316),
+      Color(0xFF6366F1),
     ];
 
-    // Draw pie slices
+    // Draw donut slices
     for (int i = 0; i < data.length; i++) {
       final entry = data[i];
       final sweepAngle = 2 * math.pi * (entry.value / total);
       paint.color = colors[i % colors.length];
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        true,
-        paint,
-      );
+      final path = Path()
+        ..addArc(
+          Rect.fromCircle(center: center, radius: radius),
+          startAngle,
+          sweepAngle,
+        )
+        ..addArc(
+          Rect.fromCircle(center: center, radius: innerR),
+          startAngle + sweepAngle,
+          -sweepAngle,
+        );
 
+      canvas.drawPath(path, paint);
       startAngle += sweepAngle;
     }
 
-    // Draw labels
+    // Draw center text
     final textPainter = TextPainter(
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     );
 
-    startAngle = 0;
-    for (int i = 0; i < data.length; i++) {
-      final entry = data[i];
-      final sweepAngle = 2 * math.pi * (entry.value / total);
-      final midAngle = startAngle + sweepAngle / 2;
-
-      // Calculate position for label
-      final labelRadius = radius * 0.7;
-      final dx = center.dx + labelRadius * math.cos(midAngle);
-      final dy = center.dy + labelRadius * math.sin(midAngle);
-      final labelPosition = Offset(dx, dy);
-
-      // Format percentage and amount
-      final percentage = (entry.value / total * 100).toStringAsFixed(1);
-      final label = '${entry.key}\n$percentage%';
-
-      textPainter
-        ..text = TextSpan(
-          text: label,
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        )
-        ..layout()
-        ..paint(
-          canvas,
-          Offset(
-            labelPosition.dx - textPainter.width / 2,
-            labelPosition.dy - textPainter.height / 2,
-          ),
-        );
-
-      startAngle += sweepAngle;
-    }
+    textPainter
+      ..text = TextSpan(
+        text: '${data.length}\nCategories',
+        style: GoogleFonts.inter(
+          color: AppColors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      )
+      ..layout()
+      ..paint(
+        canvas,
+        Offset(
+          center.dx - textPainter.width / 2,
+          center.dy - textPainter.height / 2,
+        ),
+      );
   }
 
   @override
@@ -270,13 +266,30 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final usersAsync = ref.watch(usersProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(widget.trip.name),
+        title: Text(
+          widget.trip.name,
+          style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
         actions: [
-          IconButton(icon: Icon(Icons.edit), onPressed: _navigateToManageTrip),
-          IconButton(icon: Icon(Icons.delete), onPressed: _confirmDeleteTrip),
           IconButton(
-            icon: Icon(Icons.share),
+            icon: Icon(Icons.category_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ManageCategoriesScreen(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.edit_outlined),
+            onPressed: _navigateToManageTrip,
+          ),
+          IconButton(
+            icon: Icon(Icons.share_outlined),
             onPressed: () {
               // Share trip functionality
             },
@@ -302,7 +315,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               final settlements = BalanceService.calculateSettlements(
                 balances,
                 widget.trip.id,
-                widget.trip.baseCurrency, // Pass the base currency
+                widget.trip.baseCurrency,
               );
 
               // Calculate total trip cost
@@ -311,314 +324,55 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 (sum, expense) => sum + expense.amount,
               );
 
+              final perPerson = tripMembers.isNotEmpty
+                  ? totalCost / tripMembers.length
+                  : 0.0;
+
               return SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Trip info card
-                      Card(
-                        elevation: 3,
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    widget.trip.name,
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Icon(Icons.travel_explore, size: 30),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                'Duration: ${widget.trip.startDate.toString().split(' ')[0]} - ${widget.trip.endDate.toString().split(' ')[0]}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              SizedBox(height: 5),
-                              Text(
-                                'Members: ${tripMembers.length} people',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                              SizedBox(height: 5),
-                              Text(
-                                'Base Currency: ${widget.trip.baseCurrency}',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
+                padding: EdgeInsets.all(AppSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Hero Section
+                    _buildHeroSection(totalCost, perPerson, expenses.length),
+
+                    SizedBox(height: AppSpacing.xl),
+
+                    // Dashboard Stats
+                    _buildDashboardStats(
+                      totalCost,
+                      perPerson,
+                      expenses.length,
+                      settlements.length,
+                    ),
+
+                    SizedBox(height: AppSpacing.xl),
+
+                    // Category Breakdown
+                    SectionHeader(title: 'Category Breakdown'),
+                    SizedBox(height: AppSpacing.md),
+                    ModernCard(child: _buildCategoryPieChart(expenses)),
+
+                    SizedBox(height: AppSpacing.xl),
+
+                    // Recent Expenses
+                    SectionHeader(
+                      title: 'Recent Expenses',
+                      action: TextButton(
+                        onPressed: () => _navigateToAddExpense(tripMembers),
+                        child: Text('Add New'),
                       ),
+                    ),
+                    SizedBox(height: AppSpacing.md),
+                    _buildExpensesList(expenses, tripMembers),
 
-                      SizedBox(height: 20),
+                    SizedBox(height: AppSpacing.xl),
 
-                      // Dashboard summary
-                      Text(
-                        'Dashboard',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      SizedBox(height: 10),
-
-                      // Summary cards
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Card(
-                              elevation: 3,
-                              child: Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      'Total Cost',
-                                      style: TextStyle(fontSize: 16),
-                                    ),
-                                    SizedBox(height: 5),
-                                    Text(
-                                      CurrencyService.formatCurrency(
-                                        totalCost,
-                                        widget.trip.baseCurrency,
-                                      ),
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 20),
-
-                      // Category-wise summary
-                      Text(
-                        'Category-wise Spending',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      SizedBox(height: 10),
-
-                      // Pie chart for category spending
-                      _buildCategoryPieChart(expenses),
-
-                      SizedBox(height: 20),
-
-                      // Recent expenses
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Recent Expenses',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => _navigateToAddExpense(tripMembers),
-                            child: Text('Add Expense'),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: 10),
-
-                      // List of recent expenses
-                      if (expenses.isEmpty)
-                        Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.money_off,
-                                size: 60,
-                                color: Colors.grey[400],
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                'No expenses yet',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                              SizedBox(height: 10),
-                              ElevatedButton(
-                                onPressed: () =>
-                                    _navigateToAddExpense(tripMembers),
-                                child: Text('Add First Expense'),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: expenses.length > 5 ? 5 : expenses.length,
-                          itemBuilder: (context, index) {
-                            final expense = expenses.elementAt(index);
-                            final paidBy = tripMembers.firstWhere(
-                              (member) => member.id == expense.paidById,
-                              orElse: () {
-                                final unknownUser = User.empty();
-                                unknownUser.name = 'Unknown';
-                                return unknownUser;
-                              },
-                            );
-
-                            return Card(
-                              margin: EdgeInsets.symmetric(vertical: 5),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: Colors.blue[100],
-                                  child: Text(
-                                    expense.categoryId
-                                        .substring(0, 1)
-                                        .toUpperCase(),
-                                    style: TextStyle(color: Colors.blue[800]),
-                                  ),
-                                ),
-                                title: Text(expense.description),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Paid by ${paidBy.name}',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                    Text(
-                                      '${expense.participantIds.length} participants',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
-                                  ],
-                                ),
-                                trailing: Text(
-                                  CurrencyService.formatCurrency(
-                                    expense.amount,
-                                    expense.currency,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-
-                      SizedBox(height: 20),
-
-                      // Settlements
-                      Text(
-                        'Settlements',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-
-                      SizedBox(height: 10),
-
-                      if (settlements.isEmpty)
-                        Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.check_circle,
-                                size: 60,
-                                color: Colors.green[400],
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                'All settled up!',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: settlements.length > 2
-                              ? 2
-                              : settlements.length,
-                          itemBuilder: (context, index) {
-                            final settlement = settlements.elementAt(index);
-                            final fromUser = tripMembers.firstWhere(
-                              (member) => member.id == settlement.fromUserId,
-                              orElse: () {
-                                final unknownUser = User.empty();
-                                unknownUser.name = 'Unknown';
-                                return unknownUser;
-                              },
-                            );
-                            final toUser = tripMembers.firstWhere(
-                              (member) => member.id == settlement.toUserId,
-                              orElse: () {
-                                final unknownUser = User.empty();
-                                unknownUser.name = 'Unknown';
-                                return unknownUser;
-                              },
-                            );
-
-                            return ListTile(
-                              title: Text(
-                                '${fromUser.name} owes ${toUser.name}',
-                              ),
-                              subtitle: Text('Settle with UPI or cash'),
-                              trailing: Text(
-                                CurrencyService.formatCurrency(
-                                  settlement.amount,
-                                  widget.trip.baseCurrency,
-                                ),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-
-                      if (settlements.length > 2)
-                        Center(
-                          child: TextButton(
-                            onPressed: () {
-                              // Show all settlements
-                              _showAllSettlements(settlements, tripMembers);
-                            },
-                            child: Text('View All Settlements'),
-                          ),
-                        ),
-                    ],
-                  ),
+                    // Settlements
+                    SectionHeader(title: 'Settlements'),
+                    SizedBox(height: AppSpacing.md),
+                    _buildSettlementsList(settlements, tripMembers),
+                  ],
                 ),
               );
             },
@@ -627,7 +381,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.error, size: 60, color: Colors.red),
+                  Icon(Icons.error_outline, size: 60, color: Colors.red),
                   SizedBox(height: 10),
                   Text('Error loading expenses: $error'),
                 ],
@@ -640,31 +394,489 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error, size: 60, color: Colors.red),
+              Icon(Icons.error_outline, size: 60, color: Colors.red),
               SizedBox(height: 10),
               Text('Error loading users: $error'),
             ],
           ),
         ),
       ),
-      floatingActionButton: usersAsync.when(
-        data: (users) {
-          // Filter users that belong to this trip
-          final tripMembers = users
-              .where((user) => widget.trip.memberIds.contains(user.id))
-              .toList();
-          return FloatingActionButton(
-            onPressed: () => _navigateToAddExpense(tripMembers),
-            tooltip: 'Add Expense',
-            child: Icon(Icons.add),
-          );
-        },
-        loading: () =>
-            FloatingActionButton(onPressed: null, child: Icon(Icons.add)),
-        error: (error, stack) =>
-            FloatingActionButton(onPressed: null, child: Icon(Icons.add)),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(colors: AppColors.gradientPrimary),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.4),
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              usersAsync.whenData((users) {
+                final tripMembers = users
+                    .where((user) => widget.trip.memberIds.contains(user.id))
+                    .toList();
+                _navigateToAddExpense(tripMembers);
+              });
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Icon(Icons.add, color: Colors.white, size: 28),
+            ),
+          ),
+        ),
       ),
     );
+  }
+
+  Widget _buildHeroSection(
+    double totalCost,
+    double perPerson,
+    int expenseCount,
+  ) {
+    return ModernCard(
+      gradient: LinearGradient(
+        colors: AppColors.gradientPrimary,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      padding: EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.trip.name,
+                      style: GoogleFonts.inter(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: AppSpacing.sm),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today,
+                          size: 14,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '${widget.trip.startDate.toString().split(' ')[0]} - ${widget.trip.endDate.toString().split(' ')[0]}',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.travel_explore,
+                size: 40,
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.lg),
+          Divider(color: Colors.white.withOpacity(0.3)),
+          SizedBox(height: AppSpacing.lg),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total Spent',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    CurrencyService.formatCurrency(
+                      totalCost,
+                      widget.trip.baseCurrency,
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Per Person',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    CurrencyService.formatCurrency(
+                      perPerson,
+                      widget.trip.baseCurrency,
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboardStats(
+    double totalCost,
+    double perPerson,
+    int expenseCount,
+    int settlementCount,
+  ) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: AppSpacing.md,
+      mainAxisSpacing: AppSpacing.md,
+      childAspectRatio: 1.5,
+      children: [
+        _buildStatCard(
+          icon: Icons.account_balance_wallet,
+          label: 'Total Cost',
+          value: CurrencyService.formatCurrency(
+            totalCost,
+            widget.trip.baseCurrency,
+          ),
+          color: AppColors.primary,
+        ),
+        _buildStatCard(
+          icon: Icons.person,
+          label: 'Per Person',
+          value: CurrencyService.formatCurrency(
+            perPerson,
+            widget.trip.baseCurrency,
+          ),
+          color: Color(0xFF8B5CF6),
+        ),
+        _buildStatCard(
+          icon: Icons.receipt_long,
+          label: 'Expenses',
+          value: '$expenseCount',
+          color: Color(0xFF10B981),
+        ),
+        _buildStatCard(
+          icon: Icons.handshake,
+          label: 'Settlements',
+          value: '$settlementCount',
+          color: AppColors.accent,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return ModernCard(
+      padding: EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 20, color: color),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpensesList(List<Expense> expenses, List<User> tripMembers) {
+    if (expenses.isEmpty) {
+      return EmptyState(
+        icon: Icons.receipt_long,
+        title: 'No expenses yet',
+        subtitle: 'Start tracking your trip expenses',
+        action: GradientButton(
+          text: 'Add First Expense',
+          onPressed: () => _navigateToAddExpense(tripMembers),
+          width: 200,
+        ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      itemCount: expenses.length > 5 ? 5 : expenses.length,
+      itemBuilder: (context, index) {
+        final expense = expenses.elementAt(index);
+        final paidBy = tripMembers.firstWhere(
+          (member) => member.id == expense.paidById,
+          orElse: () {
+            final unknownUser = User.empty();
+            unknownUser.name = 'Unknown';
+            return unknownUser;
+          },
+        );
+
+        return ModernCard(
+          margin: EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _getCategoryIcon(expense.categoryId),
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+              SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expense.description,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Paid by ${paidBy.name} • ${expense.participantIds.length} participants',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                CurrencyService.formatCurrency(
+                  expense.amount,
+                  expense.currency,
+                ),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSettlementsList(
+    List<Settlement> settlements,
+    List<User> tripMembers,
+  ) {
+    if (settlements.isEmpty) {
+      return ModernCard(
+        padding: EdgeInsets.all(AppSpacing.xl),
+        child: Center(
+          child: Column(
+            children: [
+              Icon(
+                Icons.check_circle_outline,
+                size: 48,
+                color: AppColors.success,
+              ),
+              SizedBox(height: AppSpacing.md),
+              Text(
+                'All settled up!',
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: settlements.length > 3 ? 3 : settlements.length,
+          itemBuilder: (context, index) {
+            final settlement = settlements.elementAt(index);
+            final fromUser = tripMembers.firstWhere(
+              (member) => member.id == settlement.fromUserId,
+              orElse: () {
+                final unknownUser = User.empty();
+                unknownUser.name = 'Unknown';
+                return unknownUser;
+              },
+            );
+            final toUser = tripMembers.firstWhere(
+              (member) => member.id == settlement.toUserId,
+              orElse: () {
+                final unknownUser = User.empty();
+                unknownUser.name = 'Unknown';
+                return unknownUser;
+              },
+            );
+
+            return ModernCard(
+              margin: EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: AppColors.error.withOpacity(0.1),
+                    child: Text(
+                      fromUser.name.substring(0, 1).toUpperCase(),
+                      style: GoogleFonts.inter(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${fromUser.name} owes ${toUser.name}',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Settle with UPI or cash',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    CurrencyService.formatCurrency(
+                      settlement.amount,
+                      widget.trip.baseCurrency,
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.error,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+        if (settlements.length > 3)
+          Center(
+            child: TextButton(
+              onPressed: () {
+                _showAllSettlements(settlements, tripMembers);
+              },
+              child: Text('View All Settlements'),
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _getCategoryIcon(String categoryId) {
+    switch (categoryId) {
+      case 'food':
+        return Icons.restaurant;
+      case 'hotel':
+        return Icons.hotel;
+      case 'travel':
+        return Icons.flight;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'entertainment':
+        return Icons.theater_comedy;
+      case 'revolutionary':
+        return Icons.stars;
+      default:
+        return Icons.category;
+    }
   }
 
   Widget _buildCategoryPieChart(List<Expense> expenses) {
@@ -684,21 +896,71 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       return Center(
         child: Text(
           'No spending yet',
-          style: TextStyle(color: Colors.grey[600]),
+          style: GoogleFonts.inter(color: AppColors.textSecondary),
         ),
       );
     }
 
-    // Convert map to list for pie chart
+    // Convert map to list for chart
     final categoryList = categoryMap.entries.toList();
     final total = categoryList.fold(0.0, (sum, item) => sum + item.value);
 
-    return SizedBox(
-      height: 200,
-      child: CustomPaint(
-        painter: PieChartPainter(categoryList, total, widget.trip.baseCurrency),
-        size: Size(double.infinity, 200),
-      ),
+    return Column(
+      children: [
+        SizedBox(
+          height: 200,
+          child: CustomPaint(
+            painter: DonutChartPainter(
+              categoryList,
+              total,
+              widget.trip.baseCurrency,
+            ),
+            size: Size(double.infinity, 200),
+          ),
+        ),
+        SizedBox(height: AppSpacing.lg),
+        // Legend
+        Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.sm,
+          children: categoryList.asMap().entries.map((entry) {
+            final index = entry.key;
+            final category = entry.value;
+            final colors = [
+              Color(0xFF0EA5E9),
+              Color(0xFF8B5CF6),
+              Color(0xFF10B981),
+              Color(0xFFF59E0B),
+              Color(0xFFEC4899),
+              Color(0xFF14B8A6),
+              Color(0xFFF97316),
+              Color(0xFF6366F1),
+            ];
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: colors[index % colors.length],
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 6),
+                Text(
+                  category.key,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 

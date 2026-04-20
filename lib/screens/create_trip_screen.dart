@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/trip.dart';
 import '../models/user.dart';
 import '../providers/trip_provider.dart';
 import '../providers/user_provider.dart';
+import '../widgets/common_widgets.dart';
 
 class CreateTripScreen extends ConsumerStatefulWidget {
   const CreateTripScreen({super.key});
@@ -168,19 +170,82 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Create Trip')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Create Trip',
+          style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+      ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(AppSpacing.lg),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header Section
+                ModernCard(
+                  gradient: LinearGradient(colors: AppColors.gradientPrimary),
+                  padding: EdgeInsets.all(AppSpacing.xl),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.travel_explore,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                      SizedBox(width: AppSpacing.lg),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Plan Your Adventure',
+                              style: GoogleFonts.inter(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Fill in the details below',
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xl),
+
+                // Trip Name
+                Text(
+                  'Trip Name',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
-                    labelText: 'Trip Name',
-                    border: OutlineInputBorder(),
+                    hintText: 'e.g., Summer Vacation 2024',
                     prefixIcon: Icon(Icons.title),
                   ),
                   validator: (value) {
@@ -190,59 +255,127 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Date Selection
+                Text(
+                  'Trip Duration',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
                     Expanded(
-                      child: InkWell(
+                      child: ModernCard(
+                        padding: EdgeInsets.zero,
                         onTap: () => _selectStartDate(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'Start Date',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today),
-                          ),
-                          child: Text(
-                            _startDate == null
-                                ? 'Select start date'
-                                : '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
+                        child: Padding(
+                          padding: EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'Start Date',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                _startDate == null
+                                    ? 'Select date'
+                                    : '${_startDate!.year}-${_startDate!.month.toString().padLeft(2, '0')}-${_startDate!.day.toString().padLeft(2, '0')}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                    SizedBox(width: 20),
+                    SizedBox(width: AppSpacing.md),
                     Expanded(
-                      child: InkWell(
+                      child: ModernCard(
+                        padding: EdgeInsets.zero,
                         onTap: () => _selectEndDate(context),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: 'End Date',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.calendar_today),
-                          ),
-                          child: Text(
-                            _endDate == null
-                                ? 'Select end date'
-                                : '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
+                        child: Padding(
+                          padding: EdgeInsets.all(AppSpacing.md),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    'End Date',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                _endDate == null
+                                    ? 'Select date'
+                                    : '${_endDate!.year}-${_endDate!.month.toString().padLeft(2, '0')}-${_endDate!.day.toString().padLeft(2, '0')}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Currency Selection
+                Text(
+                  'Base Currency',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
                 DropdownButtonFormField<String>(
                   initialValue: _baseCurrency,
                   decoration: InputDecoration(
-                    labelText: 'Base Currency',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(
-                      Icons.currency_rupee,
-                    ), // Changed to rupee symbol
+                    prefixIcon: Icon(Icons.currency_exchange),
                   ),
                   items:
                       [
-                        'INR', // Indian Rupee first
+                        'INR',
                         'USD',
                         'EUR',
                         'GBP',
@@ -265,82 +398,61 @@ class _CreateTripScreenState extends ConsumerState<CreateTripScreen> {
                     }
                   },
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
                 // Members section
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Trip Members',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 10),
-                    TextField(
-                      controller: _memberNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Add member by name',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.add),
-                          onPressed: _addMember,
-                        ),
-                      ),
-                      onSubmitted: (_) => _addMember(),
-                    ),
-                    SizedBox(height: 10),
-                    if (_members.isNotEmpty)
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: _members.length,
-                          separatorBuilder: (_, __) => Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final member = _members[index];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Text(member.name.substring(0, 1)),
-                              ),
-                              title: Text(member.name),
-                              subtitle:
-                                  member.email != null &&
-                                      member.email!.isNotEmpty
-                                  ? Text(member.email!)
-                                  : null,
-                              trailing: IconButton(
-                                icon: Icon(Icons.remove_circle_outline),
-                                onPressed: () => _removeMember(index),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                  ],
-                ),
-                SizedBox(height: 30),
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                    textStyle: TextStyle(fontSize: 18),
+                Text(
+                  'Trip Members',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
-                  child: _isSubmitting
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
+                ),
+                SizedBox(height: AppSpacing.sm),
+                TextField(
+                  controller: _memberNameController,
+                  decoration: InputDecoration(
+                    hintText: 'Enter member name',
+                    prefixIcon: Icon(Icons.person_add),
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.add_circle, color: AppColors.primary),
+                      onPressed: _addMember,
+                    ),
+                  ),
+                  onSubmitted: (_) => _addMember(),
+                ),
+                SizedBox(height: AppSpacing.md),
+                if (_members.isNotEmpty)
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: _members.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final member = entry.value;
+                      return AvatarChip(
+                        name: member.name,
+                        isSelected: true,
+                        trailing: IconButton(
+                          icon: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: AppColors.error,
                           ),
-                        )
-                      : Text('Create Trip'),
+                          onPressed: () => _removeMember(index),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                SizedBox(height: AppSpacing.xxl),
+
+                // Submit Button
+                GradientButton(
+                  text: 'Create Trip',
+                  onPressed: _isSubmitting ? () {} : _submitForm,
+                  isLoading: _isSubmitting,
                 ),
               ],
             ),

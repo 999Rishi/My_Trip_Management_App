@@ -43,4 +43,10 @@ final List<Category> defaultCategories = [
     color: 0xFF3700B3,
   ),
   Category(id: 'misc', name: 'Miscellaneous', icon: 'help', color: 0xFFBB86FC),
+  Category(
+    id: 'revolutionary',
+    name: 'Revolutionary',
+    icon: 'stars',
+    color: 0xFFFF6B6B,
+  ),
 ];

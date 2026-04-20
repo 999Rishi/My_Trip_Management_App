@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import '../models/category.dart';
 
-final categoriesProvider = FutureProvider<List<Category>>((ref) async {
+final categoriesProvider = StreamProvider<List<Category>>((ref) async* {
   final box = Hive.box<Category>('categories');
 
   // If no categories exist, add default ones
@@ -12,7 +12,13 @@ final categoriesProvider = FutureProvider<List<Category>>((ref) async {
     }
   }
 
-  return box.values.toList();
+  // Emit initial values
+  yield box.values.toList();
+
+  // Listen to changes in the box
+  await for (final _ in box.watch()) {
+    yield box.values.toList();
+  }
 });
 
 final addCategoryProvider = Provider<Function>((ref) {

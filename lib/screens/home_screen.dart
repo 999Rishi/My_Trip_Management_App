@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/trip.dart';
 import '../models/user.dart';
 import '../providers/trip_provider.dart';
 import '../providers/user_provider.dart';
+import '../widgets/common_widgets.dart';
 import 'trip_detail_screen.dart';
 import 'create_trip_screen.dart';
 
@@ -65,11 +67,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final currentUser = ref.watch(currentUserProvider);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('My Trips'),
+        title: Text(
+          'My Trips',
+          style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.settings),
+            icon: Icon(Icons.settings_outlined),
             onPressed: () {
               // Navigate to settings
             },
@@ -79,22 +85,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       body: tripsAsync.when(
         data: (trips) {
           if (trips.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.travel_explore, size: 80, color: Colors.grey[400]),
-                  SizedBox(height: 20),
-                  Text(
-                    'No trips yet',
-                    style: TextStyle(fontSize: 20, color: Colors.grey[600]),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Create your first trip to get started',
-                    style: TextStyle(color: Colors.grey[500]),
-                  ),
-                ],
+            return EmptyState(
+              icon: Icons.travel_explore,
+              title: 'No trips yet',
+              subtitle: 'Create your first trip to start tracking expenses',
+              action: GradientButton(
+                text: 'Create Your First Trip',
+                onPressed: _navigateToCreateTrip,
+                width: 240,
               ),
             );
           }
@@ -109,6 +107,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final users = usersSnapshot.data ?? [];
 
               return ListView.builder(
+                padding: EdgeInsets.all(AppSpacing.lg),
                 itemCount: trips.length,
                 itemBuilder: (context, index) {
                   final trip = trips[index];
@@ -118,61 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       .where((user) => trip.memberIds.contains(user.id))
                       .toList();
 
-                  return Card(
-                    margin: EdgeInsets.all(10),
-                    elevation: 3,
-                    child: Dismissible(
-                      key: Key(trip.id),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (direction) {
-                        // Delete the trip
-                        final deleteTrip = ref.read(deleteTripProvider);
-                        deleteTrip(trip.id);
-
-                        // Show a snackbar
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Trip "${trip.name}" deleted'),
-                          ),
-                        );
-                      },
-                      background: Container(
-                        alignment: Alignment.centerRight,
-                        padding: EdgeInsets.only(right: 20.0),
-                        color: Colors.red,
-                        child: Icon(Icons.delete, color: Colors.white),
-                      ),
-                      child: ListTile(
-                        title: Text(
-                          trip.name,
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${trip.startDate.toString().split(' ')[0]} - ${trip.endDate.toString().split(' ')[0]}',
-                            ),
-                            SizedBox(height: 5),
-                            Text(
-                              '${tripMembers.length} members',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                        trailing: Icon(Icons.arrow_forward_ios),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  TripDetailScreen(trip: trip),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
+                  return _buildTripCard(context, trip, tripMembers);
                 },
               );
             },
@@ -183,13 +128,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error, size: 60, color: Colors.red),
+              Icon(Icons.error_outline, size: 60, color: Colors.red),
               SizedBox(height: 10),
               Text('Error loading trips: $error'),
               SizedBox(height: 10),
               ElevatedButton(
                 onPressed: () {
-                  // Refresh the provider
                   ref.refresh(tripsProvider);
                 },
                 child: Text('Retry'),
@@ -198,10 +142,144 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToCreateTrip,
-        tooltip: 'Create Trip',
-        child: Icon(Icons.add),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(colors: AppColors.gradientPrimary),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.4),
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _navigateToCreateTrip,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Icon(Icons.add, color: Colors.white, size: 28),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTripCard(BuildContext context, Trip trip, List<User> members) {
+    final gradients = [
+      [Color(0xFF0EA5E9), Color(0xFF0284C7)],
+      [Color(0xFF8B5CF6), Color(0xFF7C3AED)],
+      [Color(0xFF10B981), Color(0xFF059669)],
+      [Color(0xFFF59E0B), Color(0xFFD97706)],
+      [Color(0xFFEC4899), Color(0xFFDB2777)],
+    ];
+
+    final gradientIndex = trip.name.hashCode % gradients.length;
+    final gradient = gradients[gradientIndex];
+
+    return Dismissible(
+      key: Key(trip.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) {
+        final deleteTrip = ref.read(deleteTripProvider);
+        deleteTrip(trip.id);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Trip "${trip.name}" deleted'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: EdgeInsets.only(right: 20.0),
+        decoration: BoxDecoration(
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        margin: EdgeInsets.only(bottom: AppSpacing.md),
+        child: Icon(Icons.delete_outline, color: Colors.white, size: 32),
+      ),
+      child: ModernCard(
+        margin: EdgeInsets.only(bottom: AppSpacing.md),
+        gradient: LinearGradient(
+          colors: gradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TripDetailScreen(trip: trip),
+            ),
+          );
+        },
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '${trip.startDate.toString().split(' ')[0]} - ${trip.endDate.toString().split(' ')[0]}',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: AppSpacing.sm),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.people,
+                        size: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        '${members.length} ${members.length == 1 ? 'member' : 'members'}',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white.withOpacity(0.8),
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

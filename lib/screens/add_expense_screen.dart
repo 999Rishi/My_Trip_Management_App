@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/expense.dart';
 import '../models/trip.dart';
 import '../models/user.dart';
 import '../providers/expense_provider.dart';
 import '../providers/category_provider.dart';
 import '../services/currency_service.dart';
+import '../widgets/common_widgets.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final Trip trip;
   final List<User> members;
 
-  const AddExpenseScreen({super.key, required this.trip, required this.members});
+  const AddExpenseScreen({
+    super.key,
+    required this.trip,
+    required this.members,
+  });
 
   @override
   _AddExpenseScreenState createState() => _AddExpenseScreenState();
@@ -77,6 +83,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   void _updatePaidBy(String userId) {
     setState(() {
       _paidById = userId;
+      // Ensure the person who paid is also a participant
+      if (!_participantIds.contains(userId)) {
+        _participantIds.add(userId);
+        _initializeShares();
+      }
     });
   }
 
@@ -164,21 +175,118 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text('Add Expense')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          'Add Expense',
+          style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700),
+        ),
+      ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Amount Input Section
+                ModernCard(
+                  gradient: LinearGradient(colors: AppColors.gradientPrimary),
+                  padding: EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Amount',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.black.withOpacity(0.9),
+                        ),
+                      ),
+                      SizedBox(height: AppSpacing.sm),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _currency,
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _amountController,
+                              style: GoogleFonts.inter(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black,
+                              ),
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: '0',
+                                hintStyle: GoogleFonts.inter(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black.withOpacity(0.5),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter an amount';
+                                }
+                                final amount = double.tryParse(value);
+                                if (amount == null || amount <= 0) {
+                                  return 'Please enter a valid amount';
+                                }
+                                return null;
+                              },
+                              onChanged: (value) {
+                                _convertAmount();
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_convertedAmount > 0 &&
+                          _currency != widget.trip.baseCurrency)
+                        Padding(
+                          padding: EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            '≈ ${_convertedAmount.toStringAsFixed(2)} ${widget.trip.baseCurrency}',
+                            style: GoogleFonts.inter(
+                              color: Colors.black.withOpacity(0.8),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xl),
+
+                // Description
+                Text(
+                  'Description',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
                 TextFormField(
                   controller: _descriptionController,
                   decoration: InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description),
+                    hintText: 'What was this expense for?',
+                    prefixIcon: Icon(Icons.description_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -187,135 +295,155 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Date & Currency Row
                 Row(
                   children: [
                     Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _amountController,
-                        decoration: InputDecoration(
-                          labelText: 'Amount',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.currency_rupee),
-                        ),
-                        keyboardType: TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter an amount';
-                          }
-                          final amount = double.tryParse(value);
-                          if (amount == null || amount <= 0) {
-                            return 'Please enter a valid amount';
-                          }
-                          return null;
-                        },
-                        onChanged: (value) {
-                          _convertAmount();
-                        },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Date',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: AppSpacing.sm),
+                          ModernCard(
+                            padding: EdgeInsets.zero,
+                            onTap: () => _selectDate(context),
+                            child: Padding(
+                              padding: EdgeInsets.all(AppSpacing.md),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 18,
+                                    color: AppColors.primary,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '${_dateTime.year}-${_dateTime.month.toString().padLeft(2, '0')}-${_dateTime.day.toString().padLeft(2, '0')}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    SizedBox(width: 10),
+                    SizedBox(width: AppSpacing.md),
                     Expanded(
-                      flex: 1,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _currency,
-                        decoration: InputDecoration(
-                          labelText: 'Currency',
-                          border: OutlineInputBorder(),
-                        ),
-                        items:
-                            [
-                              'INR',
-                              'USD',
-                              'EUR',
-                              'GBP',
-                              'JPY',
-                              'CAD',
-                              'AUD',
-                              'CHF',
-                              'CNY',
-                            ].map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
-                        onChanged: (String? newValue) {
-                          if (newValue != null) {
-                            _updateCurrency(newValue);
-                          }
-                        },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Currency',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          SizedBox(height: AppSpacing.sm),
+                          DropdownButtonFormField<String>(
+                            initialValue: _currency,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            items:
+                                [
+                                  'INR',
+                                  'USD',
+                                  'EUR',
+                                  'GBP',
+                                  'JPY',
+                                  'CAD',
+                                  'AUD',
+                                  'CHF',
+                                  'CNY',
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                _updateCurrency(newValue);
+                              }
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                if (_convertedAmount > 0 &&
-                    _currency != widget.trip.baseCurrency)
-                  Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      'Converted: ${_convertedAmount.toStringAsFixed(2)} ${widget.trip.baseCurrency}',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                  ),
-                SizedBox(height: 20),
-                InkWell(
-                  onTap: () => _selectDate(context),
-                  child: InputDecorator(
-                    decoration: InputDecoration(
-                      labelText: 'Date',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.calendar_today),
-                    ),
-                    child: Text(
-                      '${_dateTime.year}-${_dateTime.month.toString().padLeft(2, '0')}-${_dateTime.day.toString().padLeft(2, '0')}',
-                    ),
-                  ),
-                ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Paid By
                 Text(
-                  'Paid by',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  'Paid By',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                SizedBox(height: 10),
+                SizedBox(height: AppSpacing.sm),
                 Wrap(
-                  spacing: 8.0,
-                  runSpacing: 4.0,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: widget.members.map((member) {
-                    return ChoiceChip(
-                      label: Text(member.name),
-                      selected: _paidById == member.id,
-                      onSelected: (selected) {
-                        if (selected) {
-                          _updatePaidBy(member.id);
-                        }
+                    final isSelected = _paidById == member.id;
+                    return AvatarChip(
+                      key: ValueKey('paid_by_${member.id}'),
+                      name: member.name,
+                      isSelected: isSelected,
+                      onTap: () {
+                        _updatePaidBy(member.id);
                       },
                     );
                   }).toList(),
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Participants
                 Text(
                   'Participants',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                SizedBox(height: 10),
+                SizedBox(height: AppSpacing.sm),
                 Wrap(
-                  spacing: 8.0,
-                  runSpacing: 4.0,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
                   children: widget.members.map((member) {
                     final isSelected = _participantIds.contains(member.id);
-                    return FilterChip(
-                      label: Text(member.name),
-                      selected: isSelected,
-                      onSelected: (selected) {
+                    return AvatarChip(
+                      name: member.name,
+                      isSelected: isSelected,
+                      onTap: () {
                         setState(() {
-                          if (selected) {
-                            _participantIds.add(member.id);
-                          } else {
+                          if (isSelected) {
                             _participantIds.remove(member.id);
+                          } else {
+                            _participantIds.add(member.id);
                           }
                           _initializeShares();
                         });
@@ -324,15 +452,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     );
                   }).toList(),
                 ),
-                SizedBox(height: 20),
+                SizedBox(height: AppSpacing.xl),
+
+                // Category
+                Text(
+                  'Category',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
                 categoriesAsync.when(
                   data: (categories) {
                     return DropdownButtonFormField<String>(
                       initialValue: _categoryId,
+                      isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.category),
+                        prefixIcon: Icon(Icons.category_outlined),
                       ),
                       items: categories.map<DropdownMenuItem<String>>((
                         category,
@@ -357,23 +495,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       },
                     );
                   },
-                  loading: () => CircularProgressIndicator(),
+                  loading: () => Center(child: CircularProgressIndicator()),
                   error: (error, stack) => Text('Error loading categories'),
                 ),
-                SizedBox(height: 30),
-                Center(
-                  child: ElevatedButton(
-                    onPressed: _submitForm,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 50,
-                        vertical: 15,
-                      ),
-                      textStyle: TextStyle(fontSize: 18),
-                    ),
-                    child: Text('Add Expense'),
-                  ),
-                ),
+                SizedBox(height: AppSpacing.xxl),
+
+                // Submit Button
+                GradientButton(text: 'Add Expense', onPressed: _submitForm),
               ],
             ),
           ),
@@ -395,6 +523,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         return Icons.confirmation_number;
       case 'help':
         return Icons.help;
+      case 'stars':
+        return Icons.stars;
       default:
         return Icons.help;
     }

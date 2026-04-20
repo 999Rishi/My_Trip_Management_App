@@ -72,6 +72,12 @@ dependencies:
   
   # Geolocation
   geolocator: ^13.0.1
+  
+  # Modern typography
+  google_fonts: ^6.1.0
+  
+  # Subtle animations
+  flutter_animate: ^4.5.0
 
 dev_dependencies:
   flutter_test:
